@@ -6,15 +6,13 @@ Step for Push Notification:
 ```c
 1. Firebase Import on Your App
 
-2. Upload Certificate Required
+2. Go to Xcode
 
-3. Go to Xcode
+3. go to Capability->Push Notification On mode
 
-4. go to Capability->Push Notification On mode
+4. Background Mode on->Remote notification select
 
-5. Background Mode on->Remote notification select
+5. Write Code in App Delegate
 
-6. Write Code in App Delegate
-
-7. In Firebase you send the Notification
+6. In Firebase you send the Notification
 ```
