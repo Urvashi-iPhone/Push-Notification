@@ -1,36 +1,35 @@
-//
-//  AppDelegate.m
-//  Push Notification
-//
-//  Created by Tecksky Techonologies on 12/19/16.
-//  Copyright © 2016 Tecksky Technologies. All rights reserved.
-//
-
 #import "AppDelegate.h"
 
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 @import UserNotifications;
 #endif
 
-
 @import Firebase;
 @import FirebaseInstanceID;
 @import FirebaseMessaging;
 
-@interface AppDelegate ()<UNUserNotificationCenterDelegate, FIRMessagingDelegate>
-
-
+// Implement UNUserNotificationCenterDelegate to receive display notification via APNS for devices
+// running iOS 10 and above. Implement FIRMessagingDelegate to receive data message via FCM for
+// devices running iOS 10 and above.
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
+@interface AppDelegate () <UNUserNotificationCenterDelegate, FIRMessagingDelegate>
 @end
+#endif
+
+// Copied from Apple's header in case it is missing in some cases (e.g. pre-Xcode 8 builds).
+#ifndef NSFoundationVersionNumber_iOS_9_x_Max
+#define NSFoundationVersionNumber_iOS_9_x_Max 1299
+#endif
 
 @implementation AppDelegate
 
-
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
-{
+- (BOOL)application:(UIApplication *)application
+didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     NSLog(@"didFinishLaunchingWithOptions");
+    
+
     // Register for remote notifications
-    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_7_1)
-    {
+    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_7_1) {
         // iOS 7.1 or earlier. Disable the deprecation warnings.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -40,21 +39,16 @@
          UIRemoteNotificationTypeBadge);
         [application registerForRemoteNotificationTypes:allNotificationTypes];
 #pragma clang diagnostic pop
-    }
-    else
-    {
+    } else {
         // iOS 8 or later
         // [START register_for_notifications]
-        if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max)
-        {
+        if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
             UIUserNotificationType allNotificationTypes =
             (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
             UIUserNotificationSettings *settings =
             [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
             [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
-        }
-       else
-       {
+        } else {
             // iOS 10 or later
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
             UNAuthorizationOptions authOptions =
@@ -64,7 +58,7 @@
             [[UNUserNotificationCenter currentNotificationCenter]
              requestAuthorizationWithOptions:authOptions
              completionHandler:^(BOOL granted, NSError * _Nullable error) {
-        }
+             }
              ];
             
             // For iOS 10 display notification (sent via APNS)
@@ -84,14 +78,14 @@
     // Add observer for InstanceID token refresh callback.
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(tokenRefreshNotification:)
                                                  name:kFIRInstanceIDTokenRefreshNotification object:nil];
+    
     return YES;
 }
 
 // [START receive_message]
 // To receive notifications for iOS 9 and below.
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
-fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
-{
+fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
     // If you are receiving a notification message while your app is in the background,
     // this callback will not be fired till the user taps on the notification launching the application.
     // TODO: Handle data of notification
@@ -100,8 +94,28 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
     NSLog(@"Message ID: %@", userInfo[@"gcm.message_id"]);
     
     // Print full message.
-    NSLog(@"%@", userInfo);
-    
+    NSLog(@"%@", [[userInfo valueForKey:@"notification"] valueForKey:@"body"]);
+//    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Runmile" message:[NSString stringWithFormat:@"%@",[[userInfo valueForKey:@"notification"] valueForKey:@"body"]]delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil];
+//    
+//    [alertView show];
+   // UIApplicationState state = [application applicationState];
+ //   if (state == UIApplicationStateActive) {
+    UILocalNotification *localNotification = [[UILocalNotification alloc] init];
+    localNotification.userInfo = userInfo;
+    localNotification.soundName = UILocalNotificationDefaultSoundName;
+    localNotification.alertBody = [[userInfo valueForKey:@"notification"] valueForKey:@"body"];
+    localNotification.fireDate = [NSDate date];
+    [[UIApplication sharedApplication] scheduleLocalNotification:localNotification];
+ //   }
+//    else
+//    {
+//        UILocalNotification *localNotification = [[UILocalNotification alloc] init];
+//        localNotification.userInfo = userInfo;
+//        localNotification.soundName = UILocalNotificationDefaultSoundName;
+//        localNotification.alertBody = [[userInfo valueForKey:@"notification"] valueForKey:@"body"];
+//        localNotification.fireDate = [NSDate date];
+//        [[UIApplication sharedApplication] scheduleLocalNotification:localNotification];
+//    }
 }
 // [END receive_message]
 
@@ -110,8 +124,7 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
-         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler
-{
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
     // Print message ID.
     NSDictionary *userInfo = notification.request.content.userInfo;
     NSLog(@"Message ID: %@", userInfo[@"gcm.message_id"]);
@@ -121,8 +134,7 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 }
 
 // Receive data message on iOS 10 devices.
-- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage
-{
+- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage {
     // Print full message
     NSLog(@"%@", [remoteMessage appData]);
 }
@@ -130,8 +142,7 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 // [END ios_10_message_handling]
 
 // [START refresh_token]
-- (void)tokenRefreshNotification:(NSNotification *)notification
-{
+- (void)tokenRefreshNotification:(NSNotification *)notification {
     // Note that this callback will be fired everytime a new token is generated, including the first
     // time. So if you need to retrieve the token as soon as it is available this is where that
     // should be done.
@@ -147,10 +158,8 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 
 // [START connect_to_fcm]
 - (void)connectToFcm {
-    [[FIRMessaging messaging] connectWithCompletion:^(NSError * _Nullable error)
-     {
-        if (error != nil)
-        {
+    [[FIRMessaging messaging] connectWithCompletion:^(NSError * _Nullable error) {
+        if (error != nil) {
             NSLog(@"Unable to connect to FCM. %@", error);
         } else {
             NSLog(@"Connected to FCM.");
@@ -159,18 +168,18 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 }
 // [END connect_to_fcm]
 
-- (void)applicationDidBecomeActive:(UIApplication *)application
-{
+- (void)applicationDidBecomeActive:(UIApplication *)application {
     [self connectToFcm];
     
 }
 
 // [START disconnect_from_fcm]
-- (void)applicationDidEnterBackground:(UIApplication *)application
-{
+- (void)applicationDidEnterBackground:(UIApplication *)application {
     [[FIRMessaging messaging] disconnect];
-     NSLog(@"Disconnected from FCM");
+    NSLog(@"Disconnected from FCM");
+    [self connectToFcm];
 }
 // [END disconnect_from_fcm]
+
 
 @end
